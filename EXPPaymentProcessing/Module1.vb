@@ -36,14 +36,14 @@ Module Module1
 
 
             dtRunDate = New DateTime(DateTime.Now.AddMonths(liMonth).Year, DateTime.Now.AddMonths(liMonth).Month, iDay)
-            Console.WriteLine("Running for Payments: " + dtRunDate)
+            Console.WriteLine("Running for Payments: " & dtRunDate)
         End If
         ProcessOutstandingPayments(dtRunDate)
     End Sub
     Public Sub ProcessOutstandingPayments(ByVal RunDate As DateTime)
         Using context As New ESSageSyncExampleEntities
             Dim lstPayments As List(Of ProcessPaymentHeader) = context.ProcessPaymentHeaders.Where(Function(x) x.Processed = False And x.Date <= RunDate).ToList() 'should i be trapping if it errors so doesnt process more than once
-            Console.WriteLine("Got " + lstPayments.Count + " to run")
+            Console.WriteLine("Got " & lstPayments.Count & " to run")
             If (Not IsNothing(lstPayments)) Then
                 For Each payment As ProcessPaymentHeader In lstPayments
                     ProcessBankPayments(payment, True, True, False, context)
@@ -63,12 +63,12 @@ Module Module1
         Dim _invoicelist As New Generic.SortedList(Of String, InvoiceDetail)
         Dim _chkinvoicelist As New Generic.List(Of InvoiceDetail)
         Dim InvoiceList As New InvoiceDetail
-        Dim currentRow As String()
+        'Dim currentRow As String()
 
         Dim _paymentlist As New Generic.List(Of PaymentDetail)
         Dim PaymentList As New PaymentDetail
-        Dim liTranNumber As Integer
-        Dim liHeadNumber As Integer
+        'Dim liTranNumber As Integer
+        'Dim liHeadNumber As Integer
         Dim lsAccount As String
         Dim ldAmountOutstanding As Double
         Dim lsCurrency As String = ""
@@ -132,9 +132,17 @@ Module Module1
         ' End If
         Dim AccObj As SITAccountPosting.ISITAccountPosting = Nothing
         AccObj = New SITAccountsInterface.SITAccountMain
+        Console.WriteLine("Sage Data Path:" & SageDataPath)
+        Console.WriteLine("Sage Username:" & SageUsername)
+        Console.WriteLine("Sage Password:" & SagePassword)
         AccObj.NewInstance(lsCompanyCode, SageDataPath, SageUsername, SagePassword)
         AccObj.Connect() 'Chris Added 2/01/2019
         Console.WriteLine("Connected to Sage")
+
+        If Not (AccObj.IsConnected) Then
+            Console.WriteLine("Not connected to Sage so stopping")
+            Exit Sub
+        End If
         ' get bank info of expedite
         Dim exaddress As SITAccountPosting.CompanyBankDetail
         exaddress = FindBankDetailsForCurrency(lsCurrency, lsCompanyCode, AccObj)
