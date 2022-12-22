@@ -1,0 +1,184 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
+  <!-- EF Runtime content -->
+  <edmx:Runtime>
+    <!-- SSDL content -->
+    <edmx:StorageModels>
+    <Schema Namespace="ESSageSyncExampleModel.Store" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
+        <EntityType Name="BankNominals">
+          <Key>
+            <PropertyRef Name="BankNominalId" />
+          </Key>
+          <Property Name="BankNominalId" Type="bigint" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="CurrencyCode" Type="nvarchar" MaxLength="10" />
+          <Property Name="NominalCode" Type="nchar" MaxLength="8" />
+          <Property Name="Layout" Type="nvarchar" MaxLength="50" />
+          <Property Name="SageCompanyCode" Type="nvarchar" MaxLength="10" />
+        </EntityType>
+        <EntityType Name="ProcessPaymentHeaders">
+          <Key>
+            <PropertyRef Name="ID" />
+          </Key>
+          <Property Name="ID" Type="uniqueidentifier" Nullable="false" />
+          <Property Name="Currency" Type="nvarchar(max)" />
+          <Property Name="Date" Type="datetime2" Precision="7" />
+          <Property Name="Company" Type="nvarchar(max)" />
+          <Property Name="Processed" Type="bit" />
+        </EntityType>
+        <EntityType Name="ProcessPaymentLines">
+          <Key>
+            <PropertyRef Name="ID" />
+          </Key>
+          <Property Name="ID" Type="uniqueidentifier" Nullable="false" />
+          <Property Name="HeaderID" Type="uniqueidentifier" Nullable="false" />
+          <Property Name="AccountRef" Type="nvarchar(max)" Nullable="false" />
+          <Property Name="AmountOutstanding" Type="money" Nullable="false" />
+          <Property Name="TranNumber" Type="nvarchar(max)" Nullable="false" />
+          <Property Name="HeadNumber" Type="nvarchar(max)" Nullable="false" />
+          <Property Name="InvRef" Type="nvarchar(max)" Nullable="false" />
+        </EntityType>
+        <Association Name="FK_ProcessPaymentLines_ProcessPaymentHeaders">
+          <End Role="ProcessPaymentHeaders" Type="Self.ProcessPaymentHeaders" Multiplicity="1" />
+          <End Role="ProcessPaymentLines" Type="Self.ProcessPaymentLines" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="ProcessPaymentHeaders">
+              <PropertyRef Name="ID" />
+            </Principal>
+            <Dependent Role="ProcessPaymentLines">
+              <PropertyRef Name="HeaderID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <EntityContainer Name="ESSageSyncExampleModelStoreContainer">
+          <EntitySet Name="BankNominals" EntityType="Self.BankNominals" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="ProcessPaymentHeaders" EntityType="Self.ProcessPaymentHeaders" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="ProcessPaymentLines" EntityType="Self.ProcessPaymentLines" Schema="dbo" store:Type="Tables" />
+          <AssociationSet Name="FK_ProcessPaymentLines_ProcessPaymentHeaders" Association="Self.FK_ProcessPaymentLines_ProcessPaymentHeaders">
+            <End Role="ProcessPaymentHeaders" EntitySet="ProcessPaymentHeaders" />
+            <End Role="ProcessPaymentLines" EntitySet="ProcessPaymentLines" />
+          </AssociationSet>
+        </EntityContainer>
+      </Schema></edmx:StorageModels>
+    <!-- CSDL content -->
+    <edmx:ConceptualModels>
+      <Schema Namespace="ESSageSyncExampleModel" Alias="Self" annotation:UseStrongSpatialTypes="false" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm">
+        <EntityType Name="BankNominal">
+          <Key>
+            <PropertyRef Name="BankNominalId" />
+          </Key>
+          <Property Name="BankNominalId" Type="Int64" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="CurrencyCode" Type="String" MaxLength="10" FixedLength="false" Unicode="true" />
+          <Property Name="NominalCode" Type="String" MaxLength="8" FixedLength="true" Unicode="true" />
+          <Property Name="Layout" Type="String" MaxLength="50" FixedLength="false" Unicode="true" />
+          <Property Name="SageCompanyCode" Type="String" MaxLength="10" FixedLength="false" Unicode="true" />
+        </EntityType>
+        <EntityContainer Name="ESSageSyncExampleEntities" annotation:LazyLoadingEnabled="true">
+          <EntitySet Name="BankNominals" EntityType="Self.BankNominal" />
+          <EntitySet Name="ProcessPaymentHeaders" EntityType="ESSageSyncExampleModel.ProcessPaymentHeader" />
+          <EntitySet Name="ProcessPaymentLines" EntityType="ESSageSyncExampleModel.ProcessPaymentLine" />
+          <AssociationSet Name="FK_ProcessPaymentLines_ProcessPaymentHeaders" Association="ESSageSyncExampleModel.FK_ProcessPaymentLines_ProcessPaymentHeaders">
+            <End Role="ProcessPaymentHeader" EntitySet="ProcessPaymentHeaders" />
+            <End Role="ProcessPaymentLine" EntitySet="ProcessPaymentLines" />
+          </AssociationSet>
+        </EntityContainer>
+        <EntityType Name="ProcessPaymentHeader">
+          <Key>
+            <PropertyRef Name="ID" />
+          </Key>
+          <Property Name="ID" Type="Guid" Nullable="false" />
+          <Property Name="Currency" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="Date" Type="DateTime" Precision="7" />
+          <Property Name="Company" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="Processed" Type="Boolean" />
+          <NavigationProperty Name="ProcessPaymentLines" Relationship="ESSageSyncExampleModel.FK_ProcessPaymentLines_ProcessPaymentHeaders" FromRole="ProcessPaymentHeader" ToRole="ProcessPaymentLine" />
+        </EntityType>
+        <EntityType Name="ProcessPaymentLine">
+          <Key>
+            <PropertyRef Name="ID" />
+          </Key>
+          <Property Name="ID" Type="Guid" Nullable="false" />
+          <Property Name="HeaderID" Type="Guid" Nullable="false" />
+          <Property Name="AccountRef" Type="String" Nullable="false" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="AmountOutstanding" Type="Decimal" Nullable="false" Precision="19" Scale="4" />
+          <Property Name="TranNumber" Type="String" Nullable="false" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="HeadNumber" Type="String" Nullable="false" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="InvRef" Type="String" Nullable="false" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <NavigationProperty Name="ProcessPaymentHeader" Relationship="ESSageSyncExampleModel.FK_ProcessPaymentLines_ProcessPaymentHeaders" FromRole="ProcessPaymentLine" ToRole="ProcessPaymentHeader" />
+        </EntityType>
+        <Association Name="FK_ProcessPaymentLines_ProcessPaymentHeaders">
+          <End Type="ESSageSyncExampleModel.ProcessPaymentHeader" Role="ProcessPaymentHeader" Multiplicity="1" />
+          <End Type="ESSageSyncExampleModel.ProcessPaymentLine" Role="ProcessPaymentLine" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="ProcessPaymentHeader">
+              <PropertyRef Name="ID" />
+            </Principal>
+            <Dependent Role="ProcessPaymentLine">
+              <PropertyRef Name="HeaderID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+      </Schema>
+    </edmx:ConceptualModels>
+    <!-- C-S mapping content -->
+    <edmx:Mappings>
+      <Mapping Space="C-S" xmlns="http://schemas.microsoft.com/ado/2009/11/mapping/cs">
+        <EntityContainerMapping StorageEntityContainer="ESSageSyncExampleModelStoreContainer" CdmEntityContainer="ESSageSyncExampleEntities">
+          <EntitySetMapping Name="BankNominals">
+            <EntityTypeMapping TypeName="ESSageSyncExampleModel.BankNominal">
+              <MappingFragment StoreEntitySet="BankNominals">
+                <ScalarProperty Name="BankNominalId" ColumnName="BankNominalId" />
+                <ScalarProperty Name="CurrencyCode" ColumnName="CurrencyCode" />
+                <ScalarProperty Name="NominalCode" ColumnName="NominalCode" />
+                <ScalarProperty Name="Layout" ColumnName="Layout" />
+                <ScalarProperty Name="SageCompanyCode" ColumnName="SageCompanyCode" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="ProcessPaymentHeaders">
+            <EntityTypeMapping TypeName="ESSageSyncExampleModel.ProcessPaymentHeader">
+              <MappingFragment StoreEntitySet="ProcessPaymentHeaders">
+                <ScalarProperty Name="Processed" ColumnName="Processed" />
+                <ScalarProperty Name="Company" ColumnName="Company" />
+                <ScalarProperty Name="Date" ColumnName="Date" />
+                <ScalarProperty Name="Currency" ColumnName="Currency" />
+                <ScalarProperty Name="ID" ColumnName="ID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="ProcessPaymentLines">
+            <EntityTypeMapping TypeName="ESSageSyncExampleModel.ProcessPaymentLine">
+              <MappingFragment StoreEntitySet="ProcessPaymentLines">
+                <ScalarProperty Name="InvRef" ColumnName="InvRef" />
+                <ScalarProperty Name="HeadNumber" ColumnName="HeadNumber" />
+                <ScalarProperty Name="TranNumber" ColumnName="TranNumber" />
+                <ScalarProperty Name="AmountOutstanding" ColumnName="AmountOutstanding" />
+                <ScalarProperty Name="AccountRef" ColumnName="AccountRef" />
+                <ScalarProperty Name="HeaderID" ColumnName="HeaderID" />
+                <ScalarProperty Name="ID" ColumnName="ID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+        </EntityContainerMapping>
+      </Mapping>
+    </edmx:Mappings>
+  </edmx:Runtime>
+  <!-- EF Designer content (DO NOT EDIT MANUALLY BELOW HERE) -->
+  <Designer xmlns="http://schemas.microsoft.com/ado/2009/11/edmx">
+    <Connection>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="MetadataArtifactProcessing" Value="EmbedInOutputAssembly" />
+      </DesignerInfoPropertySet>
+    </Connection>
+    <Options>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="ValidateOnBuild" Value="true" />
+        <DesignerProperty Name="EnablePluralization" Value="true" />
+        <DesignerProperty Name="IncludeForeignKeysInModel" Value="true" />
+        <DesignerProperty Name="UseLegacyProvider" Value="false" />
+        <DesignerProperty Name="CodeGenerationStrategy" Value="None" />
+      </DesignerInfoPropertySet>
+    </Options>
+    <!-- Diagram content (shape and connector positions) -->
+    <Diagrams></Diagrams>
+  </Designer>
+</edmx:Edmx>
