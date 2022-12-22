@@ -9,16 +9,19 @@ Module Module1
     Dim PaymentDirectory As String = ""
     Sub Main(ByVal args As String())
         Dim dtRunDate = DateTime.MinValue
+        Dim liMonth As Integer = 0
+        Dim iDay As Integer = 1
         If args.Count() > 1 Then
             For i As Integer = 0 To args.Count() - 1 Step 2
                 Dim lsCommand As String = args(i)
                 Dim lsData As String = args(i + 1)
                 Select Case lsCommand.ToUpper()
                     Case "-DAY"
-                        Dim iDay As Integer = 1
+
                         Integer.TryParse(lsData, iDay)
 
-                        dtRunDate = New DateTime(DateTime.Now.Year, DateTime.Now.Month, iDay)
+                    Case "-MONTH"
+                        Integer.TryParse(lsData, liMonth)
                     Case "-SAGEPATH"
                         SageDataPath = lsData
                     Case "-SAGEUSERNAME"
@@ -30,16 +33,20 @@ Module Module1
                         My.Settings.Save()
                 End Select
             Next i
+
+
+            dtRunDate = New DateTime(DateTime.Now.AddMonths(liMonth).Year, DateTime.Now.AddMonths(liMonth).Month, iDay)
+            Console.WriteLine("Running for Payments: " + dtRunDate)
         End If
         ProcessOutstandingPayments(dtRunDate)
     End Sub
     Public Sub ProcessOutstandingPayments(ByVal RunDate As DateTime)
         Using context As New ESSageSyncExampleEntities
             Dim lstPayments As List(Of ProcessPaymentHeader) = context.ProcessPaymentHeaders.Where(Function(x) x.Processed = False And x.Date <= RunDate).ToList() 'should i be trapping if it errors so doesnt process more than once
+            Console.WriteLine("Got " + lstPayments.Count + " to run")
             If (Not IsNothing(lstPayments)) Then
-                Dim msgData As New Specialized.StringCollection
                 For Each payment As ProcessPaymentHeader In lstPayments
-                    ProcessBankPayments(payment, msgData, True, True, False, context)
+                    ProcessBankPayments(payment, True, True, False, context)
                     payment.Processed = True
                 Next
             End If
@@ -47,7 +54,7 @@ Module Module1
         End Using
     End Sub
 
-    Public Sub ProcessBankPayments(ByVal paymentHeader As ProcessPaymentHeader, ByVal MessageData As System.Collections.Specialized.StringCollection, ByVal GenerateFile As Boolean, ByVal UpdateSage As Boolean, ByVal SageGenerateChequeNumbers As Boolean, ByVal context As ESSageSyncExampleEntities)
+    Public Sub ProcessBankPayments(ByVal paymentHeader As ProcessPaymentHeader, ByVal GenerateFile As Boolean, ByVal UpdateSage As Boolean, ByVal SageGenerateChequeNumbers As Boolean, ByVal context As ESSageSyncExampleEntities)
         'Dim sRead As New System.IO.StringReader(InvoiceDetails)
         'Dim tfp As New Microsoft.VisualBasic.FileIO.TextFieldParser(sRead)
         'tfp.SetDelimiters(",")
@@ -78,19 +85,19 @@ Module Module1
         'currentRow = tfp.ReadFields()
         'If currentRow.GetUpperBound(0) = 2 Then
         lsCurrency = paymentHeader.Currency
-                'If Not Date.TryParse(currentRow(1), ldPaymentDate) Then
-                '    MessageData.Add("Cannot identify payment date")
-                '    Exit Sub
-                'End If
-                ldPaymentDate = paymentHeader.Date
-                lsCompanyCode = paymentHeader.Company
-                MessageData.Add("Processing payments for " & lsCompanyCode & " currency " & lsCurrency & " Payment Date " & ldPaymentDate.ToShortDateString)
-                'End If
+        'If Not Date.TryParse(currentRow(1), ldPaymentDate) Then
+        '    Console.WriteLine("Cannot identify payment date")
+        '    Exit Sub
+        'End If
+        ldPaymentDate = paymentHeader.Date
+        lsCompanyCode = paymentHeader.Company
+        Console.WriteLine("Processing payments for " & lsCompanyCode & " currency " & lsCurrency & " Payment Date " & ldPaymentDate.ToShortDateString)
+        'End If
 
 
-                For Each line As ProcessPaymentLine In lstLines
-                    Try
-                        Dim x As New InvoiceDetail
+        For Each line As ProcessPaymentLine In lstLines
+            Try
+                Dim x As New InvoiceDetail
                 If line.TranNumber <> 0 Then
                     x.Account = line.AccountRef
                     x.TranNumber = line.TranNumber
@@ -99,38 +106,38 @@ Module Module1
                     _invoicelist.Add(x.Account + Str(_invoicelist.Count + 1), x)
                 End If
             Catch ex As Exception
-                        MessageData.Add("Line " & ex.Message & "is not valid and will be skipped.")
-                    End Try
-            Next
+                Console.WriteLine("Line " & ex.Message & "is not valid and will be skipped.")
+            End Try
+        Next
 
         ' End While
         If _invoicelist.Count = 0 Then
-            MessageData.Add("No invoices to process")
+            Console.WriteLine("No invoices to process")
             ' error message and exit
             Exit Sub
         End If
         If String.IsNullOrEmpty(lsCompanyCode) Then
-            MessageData.Add("Company code not set")
+            Console.WriteLine("Company code not set")
             Exit Sub
         End If
         'Dim _helper As New SOPADatabaseHelper.OrderDataHelper(DataConnectionString)
         'Dim srow As SOPADatabaseHelper.dsOrderDatabase.SOPASageCompanyRow = _helper.GetSageCompanyRecord(lsCompanyCode)
         'If IsNothing(srow) Then
-        ' MessageData.Add("Invalid Sage company code " & lsCompanyCode)
+        ' Console.WriteLine("Invalid Sage company code " & lsCompanyCode)
         ' Exit Sub
         ' End If
         'If srow.IsDataDirectoryNull Or srow.IsPasswordNull Or srow.IsUsernameNull Then
-        ' MessageData.Add("Missing Sage data for company code " & lsCompanyCode)
+        ' Console.WriteLine("Missing Sage data for company code " & lsCompanyCode)
         ' Exit Sub
         ' End If
         Dim AccObj As SITAccountPosting.ISITAccountPosting = Nothing
         AccObj = New SITAccountsInterface.SITAccountMain
         AccObj.NewInstance(lsCompanyCode, SageDataPath, SageUsername, SagePassword)
         AccObj.Connect() 'Chris Added 2/01/2019
-
+        Console.WriteLine("Connected to Sage")
         ' get bank info of expedite
         Dim exaddress As SITAccountPosting.CompanyBankDetail
-        exaddress = FindBankDetailsForCurrency(lsCurrency, lsCompanyCode, AccObj, MessageData)
+        exaddress = FindBankDetailsForCurrency(lsCurrency, lsCompanyCode, AccObj)
 
         If IsNothing(exaddress) Then
             AccObj.Disconnect()
@@ -180,9 +187,9 @@ Module Module1
         If GenerateFile Then
             Dim liBankLayout As SopaBankLayouts = GetPaymentFileLayoutEnum(exaddress.BankLayout)
             If liBankLayout = SopaBankLayouts.Invalid Then
-                MessageData.Add("Invalid layout code " & exaddress.BankLayout)
+                Console.WriteLine("Invalid layout code " & exaddress.BankLayout)
             ElseIf liBankLayout = SopaBankLayouts.NoCreateFile Then
-                MessageData.Add("Specified that no file to be created for this currency")
+                Console.WriteLine("Specified that no file to be created for this currency")
             Else
                 For Each x As InvoiceDetail In _chkinvoicelist
 
@@ -191,7 +198,7 @@ Module Module1
 
                     adpaymentDetail.SupplierBankDetails = AccObj.GetSupplierBankDetails(x.Account)
 
-                    lbValid = ValidateBankInfo(adpaymentDetail, liBankLayout, x.AmountOutstanding, x.Account, MessageData)
+                    lbValid = ValidateBankInfo(adpaymentDetail, liBankLayout, x.AmountOutstanding, x.Account)
 
                     If x.AmountOutstanding <= 0 Then
                         lbValid = False
@@ -223,13 +230,13 @@ Module Module1
                 Next
             End If
         Catch ex As Exception
-            MessageData.Add("Error creating purchase payments")
-            MessageData.Add(ex.Message)
-            MessageData.Add(ex.StackTrace)
+            Console.WriteLine("Error creating purchase payments")
+            Console.WriteLine(ex.Message)
+            Console.WriteLine(ex.StackTrace)
         End Try
 
         For Each s As String In AccObj.AuditText(SITAccountPosting.AuditTextLevel.All)
-            MessageData.Add(s)
+            Console.WriteLine(s)
         Next
         AccObj.ClearAuditText()
         AccObj.Disconnect() 'removes connection and starts new connection on next link? Chris 2/1/19
@@ -399,47 +406,47 @@ Module Module1
         End Select
         Return SopaBankLayouts.Invalid
     End Function
-    Public Function ValidateBankInfo(ByRef BankDetail As SOPAWorkflowLibrary.PaymentDetail, ByVal LayoutEnum As SopaBankLayouts, ByVal amount As Double, ByVal accountref As String, ByVal MessageData As System.Collections.Specialized.StringCollection) As Boolean
+    Public Function ValidateBankInfo(ByRef BankDetail As SOPAWorkflowLibrary.PaymentDetail, ByVal LayoutEnum As SopaBankLayouts, ByVal amount As Double, ByVal accountref As String) As Boolean
 
         'If lbError = False Then
         Select Case LayoutEnum
             Case Is = SopaBankLayouts.HSBCUKBacs
                 If String.IsNullOrEmpty(BankDetail.SupplierBankDetails.AccountNumber) Then
-                    MessageData.Add("Account " & accountref & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
-                    'MessageData.Add("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
+                    Console.WriteLine("Account " & accountref & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
+                    'Console.WriteLine("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
                     Return False
                 End If
                 If String.IsNullOrEmpty(BankDetail.SupplierBankDetails.Sortcode) Then
-                    MessageData.Add("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank Sort Code not found" & amount.ToString("C2"))
+                    Console.WriteLine("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank Sort Code not found" & amount.ToString("C2"))
                     Return False
                 End If
                 BankDetail.SupplierBankDetails.Sortcode = BankDetail.SupplierBankDetails.Sortcode.Replace("-", String.Empty)
             Case Is = SopaBankLayouts.HSBCEurozone
                 'If String.IsNullOrEmpty(BankDetail.SupplierBankDetails.AccountNumber) Then
-                '    MessageData.Add("Account " & accountref & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
-                '    MessageData.Add("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
+                '    Console.WriteLine("Account " & accountref & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
+                '    Console.WriteLine("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
                 '    Return False
                 'End If
                 If BankDetail.SupplierBankDetails.Address.Count <= 0 Then
-                    MessageData.Add("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Address not found")
+                    Console.WriteLine("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Address not found")
                     Return False
                 End If
                 If String.IsNullOrEmpty(BankDetail.SupplierBankDetails.BankBICSWIFT) Then
-                    MessageData.Add("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank BICSWIFT Address not Found")
+                    Console.WriteLine("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank BICSWIFT Address not Found")
                     Return False
                 End If
             Case Is = SopaBankLayouts.HSBCPriority
                 If String.IsNullOrEmpty(BankDetail.SupplierBankDetails.AccountNumber) Then
-                    MessageData.Add("Account " & accountref & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
-                    'MessageData.Add("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
+                    Console.WriteLine("Account " & accountref & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
+                    'Console.WriteLine("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank Account number not Found, Outstanding " & amount.ToString("C2"))
                     Return False
                 End If
                 If BankDetail.SupplierBankDetails.Address.Count <= 0 Then
-                    MessageData.Add("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Address not found")
+                    Console.WriteLine("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Address not found")
                     Return False
                 End If
                 If String.IsNullOrEmpty(BankDetail.SupplierBankDetails.BankBICSWIFT) Then
-                    MessageData.Add("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank BICSWIFT Address not Found")
+                    Console.WriteLine("Account " & BankDetail.SupplierBankDetails.AccountNumber & " Bank BICSWIFT Address not Found")
                     Return False
                 End If
             Case Else
@@ -447,16 +454,16 @@ Module Module1
         End Select
         Return True
     End Function
-    Public Function FindBankDetailsForCurrency(ByVal CurrencyCode As String, CompanyCode As String, ByVal AccObj As SITAccountPosting.ISITAccountPosting, ByVal MessageData As System.Collections.Specialized.StringCollection) As SITAccountPosting.CompanyBankDetail
+    Public Function FindBankDetailsForCurrency(ByVal CurrencyCode As String, CompanyCode As String, ByVal AccObj As SITAccountPosting.ISITAccountPosting) As SITAccountPosting.CompanyBankDetail
         Dim BankNom As BankNominal
         BankNom = GetBankNominal(CurrencyCode, CompanyCode)
         If IsNothing(BankNom) Then
-            MessageData.Add("Cannot find processing definition for currency " & CurrencyCode)
+            Console.WriteLine("Cannot find processing definition for currency " & CurrencyCode)
             Return Nothing
         End If
         Dim CoBank As SITAccountPosting.CompanyBankDetail = AccObj.GetCompanyBankDetails(BankNom.NominalCode)
         For Each s As String In AccObj.AuditText(SITAccountPosting.AuditTextLevel.All)
-            MessageData.Add(s)
+            Console.WriteLine(s)
         Next
         If Not IsNothing(CoBank) Then
             CoBank.BankLayout = BankNom.Layout
